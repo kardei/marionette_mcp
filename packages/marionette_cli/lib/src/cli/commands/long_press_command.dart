@@ -1,5 +1,3 @@
-import 'dart:io';
-
 import 'package:marionette_cli/src/cli/instance_command.dart';
 import 'package:marionette_cli/src/cli/matcher_builder.dart';
 import 'package:marionette_cli/src/instance_registry.dart';
@@ -58,9 +56,11 @@ class LongPressCommand extends InstanceCommand {
     }
 
     final response = await connector.longPress(matcher, durationMs: duration);
-    final message =
-        response['message'] as String? ?? 'Successfully long pressed';
-    stdout.writeln(message);
+    writeGestureOutput(
+      gesture: 'long_press',
+      response: response,
+      fallbackMessage: 'Successfully long pressed',
+    );
     return 0;
   }
 

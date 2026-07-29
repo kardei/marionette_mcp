@@ -9,6 +9,7 @@ import 'package:marionette_flutter/src/binding/marionette_configuration.dart';
 import 'package:marionette_flutter/src/binding/marionette_extension_result.dart';
 import 'package:marionette_flutter/src/binding/register_extension_internal.dart';
 import 'package:marionette_flutter/src/services/create_screencast_server.dart';
+import 'package:marionette_flutter/src/services/debug_error_collector.dart';
 import 'package:marionette_flutter/src/services/element_tree_finder.dart';
 import 'package:marionette_flutter/src/services/gesture_dispatcher.dart';
 import 'package:marionette_flutter/src/services/keyboard_simulator.dart';
@@ -133,7 +134,8 @@ class MarionetteBinding extends WidgetsFlutterBinding {
 
     if (configuration.logCollector != null) {
       _logStore = LogStore();
-      configuration.logCollector!.start(_logStore!.add);
+      configuration.logCollector!.startStructured(_logStore!.addEntry);
+      DebugErrorCollector(_logStore!.addEntry).install();
     }
   }
 

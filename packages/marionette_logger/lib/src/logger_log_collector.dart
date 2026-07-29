@@ -1,5 +1,6 @@
 import 'package:logger/logger.dart';
-import 'package:marionette_flutter/marionette_flutter.dart';
+import 'package:marionette_flutter/src/services/log_collector.dart';
+import 'package:marionette_flutter/src/services/log_entry.dart';
 
 /// A [LogCollector] that also serves as a [LogOutput] for the logger package.
 ///
@@ -40,6 +41,16 @@ class LoggerLogCollector extends LogOutput implements LogCollector {
   @override
   void start(void Function(String log) onLog) {
     _onLog = onLog;
+  }
+
+  @override
+  void startStructured(void Function(LogEntry entry) onLog) {
+    _onLog = (message) => onLog(LogEntry.fromLegacy(
+          message: message,
+          timestamp: DateTime.now(),
+          severity: 'info',
+          source: 'legacy',
+        ));
   }
 
   @override

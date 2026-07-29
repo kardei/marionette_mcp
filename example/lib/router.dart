@@ -91,16 +91,19 @@ class ScaffoldWithNav extends StatelessWidget {
         onDestinationSelected: (index) => _onTap(context, index),
         destinations: const [
           NavigationDestination(
+            key: ValueKey('nav_home'),
             icon: Icon(Icons.home_outlined),
             selectedIcon: Icon(Icons.home),
             label: 'Home',
           ),
           NavigationDestination(
+            key: ValueKey('nav_profile'),
             icon: Icon(Icons.person_outline),
             selectedIcon: Icon(Icons.person),
             label: 'Profile',
           ),
           NavigationDestination(
+            key: ValueKey('nav_settings'),
             icon: Icon(Icons.settings_outlined),
             selectedIcon: Icon(Icons.settings),
             label: 'Settings',

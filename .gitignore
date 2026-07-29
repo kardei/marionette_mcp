@@ -3,6 +3,7 @@
 .fvm/
 .packages
 build/
+.tmp/
 
 # IDE
 .idea/

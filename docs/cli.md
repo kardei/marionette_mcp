@@ -77,7 +77,7 @@ marionette doctor              # Check connectivity of all instances
 
 ## Command reference
 
-Global options: `-i, --instance <name>`, `--uri <ws://...>`, `--timeout <seconds>` (default 5).
+Global options: `-i, --instance <name>`, `--uri <ws://...>`, `--timeout <seconds>` (default 5), `--format text|json` (default `text`).
 
 | Command | Purpose |
 | --- | --- |
@@ -95,6 +95,7 @@ Global options: `-i, --instance <name>`, `--uri <ws://...>`, `--timeout <seconds
 | `take-screenshots` | Capture a screenshot (`-o/--output`, `--open`). |
 | `record-video` | Record video (`-o/--output`, `-d/--duration`, `--width`, `--height`, `--ffmpeg-path`, `--open`, …). |
 | `get-logs` | Retrieve app logs. |
+| `capture` | Read-only export of `elements.json`, screenshots, and cursor-aware `logs.json` (`--output-dir <dir>`, optional `--after-sequence`). |
 | `hot-reload` | Hot reload the app. |
 | `hot-restart` | Hot restart the app — restart from `main()`, resetting all state. |
 | `register <name> <uri>` | Register a named instance. |
@@ -103,3 +104,9 @@ Global options: `-i, --instance <name>`, `--uri <ws://...>`, `--timeout <seconds
 | `doctor` | Check connectivity of all instances. |
 | `help-ai` | Print the AI-oriented command reference. |
 | `mcp` | Run the MCP server (`-l/--log-level`, `--log-file`, `--sse-port`). |
+
+With `--format json`, read-only commands expose stable structured JSON. Log
+responses include `entries` with sequence, timestamp, severity, source,
+message, error, and stack fields, plus a `cursor`; pass
+`--after-sequence` to request only the delta after a cursor. Existing text
+output and MCP `TextContent` responses remain available for older clients.

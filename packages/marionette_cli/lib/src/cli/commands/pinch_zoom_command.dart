@@ -1,5 +1,3 @@
-import 'dart:io';
-
 import 'package:marionette_cli/src/cli/instance_command.dart';
 import 'package:marionette_cli/src/cli/matcher_builder.dart';
 import 'package:marionette_cli/src/instance_registry.dart';
@@ -82,9 +80,11 @@ class PinchZoomCommand extends InstanceCommand {
       scale: scale,
       startDistance: startDistance,
     );
-    final message =
-        response['message'] as String? ?? 'Successfully pinch zoomed';
-    stdout.writeln(message);
+    writeGestureOutput(
+      gesture: 'pinch_zoom',
+      response: response,
+      fallbackMessage: 'Successfully pinch zoomed',
+    );
     return 0;
   }
 

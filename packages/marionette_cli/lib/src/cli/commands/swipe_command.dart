@@ -1,5 +1,3 @@
-import 'dart:io';
-
 import 'package:marionette_cli/src/cli/instance_command.dart';
 import 'package:marionette_cli/src/cli/matcher_builder.dart';
 import 'package:marionette_cli/src/instance_registry.dart';
@@ -121,8 +119,11 @@ class SwipeCommand extends InstanceCommand {
     }
 
     final response = await connector.swipe(swipeArgs);
-    final message = response['message'] as String? ?? 'Successfully swiped';
-    stdout.writeln(message);
+    writeGestureOutput(
+      gesture: 'swipe',
+      response: response,
+      fallbackMessage: 'Successfully swiped',
+    );
     return 0;
   }
 

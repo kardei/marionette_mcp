@@ -21,3 +21,4 @@ Map<String, dynamic> buildMatcherFromArgs({
   if (focused) matcher['focused'] = true;
   return matcher;
 }
+// @marionette-codec-boundary: explicit JSON/VM/MCP codec boundary

@@ -106,3 +106,4 @@ class ScreencastNativeWsClient implements ScreencastServer {
     ws.add(header.encodeWithPayload(frame.rgbaBytes));
   }
 }
+// @marionette-codec-boundary: explicit JSON/VM/MCP codec boundary

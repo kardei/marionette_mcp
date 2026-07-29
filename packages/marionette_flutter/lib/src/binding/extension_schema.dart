@@ -243,3 +243,4 @@ class BooleanParam extends ExtensionParam {
     };
   }
 }
+// @marionette-codec-boundary: explicit JSON/VM/MCP codec boundary

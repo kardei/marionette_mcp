@@ -35,3 +35,4 @@ Map<String, String> coerceToStringMap(Map<String, dynamic> args) {
   }
   return result;
 }
+// @marionette-codec-boundary: explicit JSON/VM/MCP codec boundary

@@ -302,3 +302,4 @@ String sanitizeToolName(String name) {
       .replaceAll(RegExp(r'^_+|_+$'), '');
   return sanitized.isEmpty ? '_' : sanitized;
 }
+// @marionette-codec-boundary: explicit JSON/VM/MCP codec boundary

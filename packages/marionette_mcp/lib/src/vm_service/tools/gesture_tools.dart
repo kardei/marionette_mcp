@@ -1,6 +1,6 @@
 import 'package:logging/logging.dart' as logging;
 import 'package:marionette_mcp/src/formatting.dart';
-import 'package:marionette_mcp/src/vm_service/tools/tool_runner.dart';
+import 'package:marionette_mcp/src/vm_service/tools/gesture_outcome.dart';
 import 'package:marionette_mcp/src/vm_service/vm_service_connector.dart';
 import 'package:mcp_dart/mcp_dart.dart';
 
@@ -57,13 +57,11 @@ void registerGestureTools(
       callback: (args, extra) async {
         final matcher = buildMatcher(args);
         logger.info('Tapping with matcher: $matcher');
-        return runTool(logger, 'tap', () async {
-          final response = await connector.tap(matcher);
-          final message = response['message'] as String?;
-          return CallToolResult(
-            content: [TextContent(text: message ?? 'Successfully tapped')],
-          );
-        });
+        return runDiagnosticGesture(
+          logger,
+          'tap',
+          () => connector.tap(matcher),
+        );
       },
     )
     ..registerTool(
@@ -109,15 +107,11 @@ void registerGestureTools(
       callback: (args, extra) async {
         final matcher = buildMatcher(args);
         logger.info('Secondary tapping with matcher: $matcher');
-        return runTool(logger, 'secondary tap', () async {
-          final response = await connector.secondaryTap(matcher);
-          final message = response['message'] as String?;
-          return CallToolResult(
-            content: [
-              TextContent(text: message ?? 'Successfully secondary tapped'),
-            ],
-          );
-        });
+        return runDiagnosticGesture(
+          logger,
+          'secondary_tap',
+          () => connector.secondaryTap(matcher),
+        );
       },
     )
     ..registerTool(
@@ -178,15 +172,11 @@ void registerGestureTools(
         }
         final matcher = buildMatcher(args);
         logger.info('Double tapping with matcher: $matcher');
-        return runTool(logger, 'double tap', () async {
-          final response = await connector.doubleTap(matcher, delayMs: delay);
-          final message = response['message'] as String?;
-          return CallToolResult(
-            content: [
-              TextContent(text: message ?? 'Successfully double tapped'),
-            ],
-          );
-        });
+        return runDiagnosticGesture(
+          logger,
+          'double_tap',
+          () => connector.doubleTap(matcher, delayMs: delay),
+        );
       },
     )
     ..registerTool(
@@ -237,18 +227,11 @@ void registerGestureTools(
         final duration = (args['duration'] as num?)?.toInt();
         final matcher = buildMatcher(args);
         logger.info('Long pressing with matcher: $matcher');
-        return runTool(logger, 'long press', () async {
-          final response = await connector.longPress(
-            matcher,
-            durationMs: duration,
-          );
-          final message = response['message'] as String?;
-          return CallToolResult(
-            content: [
-              TextContent(text: message ?? 'Successfully long pressed'),
-            ],
-          );
-        });
+        return runDiagnosticGesture(
+          logger,
+          'long_press',
+          () => connector.longPress(matcher, durationMs: duration),
+        );
       },
     )
     ..registerTool(
@@ -340,13 +323,11 @@ void registerGestureTools(
           }
         }
 
-        return runTool(logger, 'swipe', () async {
-          final response = await connector.swipe(swipeArgs);
-          final message = response['message'] as String?;
-          return CallToolResult(
-            content: [TextContent(text: message ?? 'Successfully swiped')],
-          );
-        });
+        return runDiagnosticGesture(
+          logger,
+          'swipe',
+          () => connector.swipe(swipeArgs),
+        );
       },
     )
     ..registerTool(
@@ -433,19 +414,15 @@ void registerGestureTools(
         }
 
         logger.info('Pinch zooming with matcher: $matcher, scale: $scale');
-        return runTool(logger, 'pinch zoom', () async {
-          final response = await connector.pinchZoom(
+        return runDiagnosticGesture(
+          logger,
+          'pinch_zoom',
+          () => connector.pinchZoom(
             matcher,
             scale: scale,
             startDistance: startDistance,
-          );
-          final message = response['message'] as String?;
-          return CallToolResult(
-            content: [
-              TextContent(text: message ?? 'Successfully pinch zoomed'),
-            ],
-          );
-        });
+          ),
+        );
       },
     )
     ..registerTool(
@@ -461,22 +438,11 @@ void registerGestureTools(
       inputSchema: const ToolInputSchema(properties: {}),
       callback: (args, extra) async {
         logger.info('Pressing back button');
-        return runTool(logger, 'press back button', () async {
-          final response = await connector.pressBackButton();
-          final message = response['message'] as String?;
-          final didPop = response['didPop'];
-
-          return CallToolResult(
-            content: [
-              TextContent(
-                text: message ??
-                    (didPop == true
-                        ? 'Back button pressed, route was popped'
-                        : 'Back button pressed, no route to pop'),
-              ),
-            ],
-          );
-        });
+        return runDiagnosticGesture(
+          logger,
+          'press_back_button',
+          () => connector.pressBackButton(),
+        );
       },
     )
     ..registerTool(
@@ -505,17 +471,11 @@ void registerGestureTools(
       callback: (args, extra) async {
         final matcher = buildMatcher(args);
         logger.info('Scrolling to element with matcher: $matcher');
-        return runTool(logger, 'scroll to element', () async {
-          final response = await connector.scrollToElement(matcher);
-          final message = response['message'] as String?;
-          return CallToolResult(
-            content: [
-              TextContent(
-                text: message ?? 'Successfully scrolled to element',
-              ),
-            ],
-          );
-        });
+        return runDiagnosticGesture(
+          logger,
+          'scroll_to',
+          () => connector.scrollToElement(matcher),
+        );
       },
     );
 }

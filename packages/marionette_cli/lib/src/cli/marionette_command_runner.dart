@@ -7,6 +7,7 @@ import 'package:marionette_cli/src/cli/commands/double_tap_command.dart';
 import 'package:marionette_cli/src/cli/commands/enter_text_command.dart';
 import 'package:marionette_cli/src/cli/commands/get_interactive_elements_command.dart';
 import 'package:marionette_cli/src/cli/commands/get_logs_command.dart';
+import 'package:marionette_cli/src/cli/commands/capture_command.dart';
 import 'package:marionette_cli/src/cli/commands/help_ai_command.dart';
 import 'package:marionette_cli/src/cli/commands/hot_reload_command.dart';
 import 'package:marionette_cli/src/cli/commands/hot_restart_command.dart';
@@ -48,6 +49,12 @@ class MarionetteCommandRunner extends CommandRunner<int> {
         'timeout',
         help: 'Connection timeout in seconds.',
         defaultsTo: '5',
+      )
+      ..addOption(
+        'format',
+        help: 'Output format for machine-readable commands.',
+        defaultsTo: 'text',
+        allowed: ['text', 'json'],
       );
 
     addCommand(RegisterCommand(_registry));
@@ -67,6 +74,7 @@ class MarionetteCommandRunner extends CommandRunner<int> {
     addCommand(ScreenshotCommand(_registry));
     addCommand(RecordVideoCommand(_registry));
     addCommand(LogsCommand(_registry));
+    addCommand(CaptureCommand(_registry));
     addCommand(HotReloadCommand(_registry));
     addCommand(HotRestartCommand(_registry));
     addCommand(DoctorCommand(_registry));

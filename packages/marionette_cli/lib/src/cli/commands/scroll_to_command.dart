@@ -1,5 +1,3 @@
-import 'dart:io';
-
 import 'package:marionette_cli/src/cli/instance_command.dart';
 import 'package:marionette_cli/src/cli/matcher_builder.dart';
 import 'package:marionette_cli/src/instance_registry.dart';
@@ -40,9 +38,11 @@ class ScrollToCommand extends InstanceCommand {
     }
 
     final response = await connector.scrollToElement(matcher);
-    final message =
-        response['message'] as String? ?? 'Successfully scrolled to element';
-    stdout.writeln(message);
+    writeGestureOutput(
+      gesture: 'scroll_to',
+      response: response,
+      fallbackMessage: 'Successfully scrolled to element',
+    );
     return 0;
   }
 }

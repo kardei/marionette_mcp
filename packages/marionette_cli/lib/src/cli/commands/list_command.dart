@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:args/command_runner.dart';
+import 'package:marionette_cli/src/cli/output.dart';
 import 'package:marionette_cli/src/instance_registry.dart';
 
 class ListCommand extends Command<int> {
@@ -17,6 +18,11 @@ class ListCommand extends Command<int> {
   @override
   int run() {
     final instances = _registry.listAll();
+
+    if (outputFormatFrom(globalResults?['format']) == OutputFormat.json) {
+      writeJson(CliInstanceListResult(instances));
+      return 0;
+    }
 
     if (instances.isEmpty) {
       stdout.writeln('No instances registered.');

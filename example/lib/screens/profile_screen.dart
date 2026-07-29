@@ -15,6 +15,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   String _emailValue = '';
   String _bioValue = '';
   bool _isFormValid = false;
+  int _longPressCount = 0;
 
   void _recomputeFormState() {
     final formIsValid = _formKey.currentState?.validate() ?? false;
@@ -125,6 +126,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
             ),
             const SizedBox(height: 24),
             FilledButton(
+              key: const ValueKey('profile_submit'),
               onPressed: _isFormValid
                   ? () {
                       ScaffoldMessenger.of(context).showSnackBar(
@@ -133,6 +135,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     }
                   : null,
               child: const Text('Submit'),
+            ),
+            const SizedBox(height: 16),
+            OutlinedButton(
+              key: const ValueKey('long_press_target'),
+              onPressed: () {},
+              onLongPress: () => setState(() => _longPressCount += 1),
+              child: Text('Long press count: $_longPressCount'),
             ),
           ],
         ),

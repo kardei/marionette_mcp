@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:marionette_cli/src/cli/instance_command.dart';
+import 'package:marionette_cli/src/cli/output.dart';
 import 'package:marionette_cli/src/instance_registry.dart';
 import 'package:marionette_mcp/src/vm_service/vm_service_connector.dart';
 import 'package:path/path.dart' as p;
@@ -61,7 +62,13 @@ class ScreenshotCommand extends InstanceCommand {
     }
 
     for (final saved in savedPaths) {
-      stdout.writeln('Saved screenshot: $saved');
+      if (outputFormat == OutputFormat.text) {
+        stdout.writeln('Saved screenshot: $saved');
+      }
+    }
+
+    if (outputFormat == OutputFormat.json) {
+      writeJson(CliScreenshotResult(savedPaths));
     }
 
     if (shouldOpen) {

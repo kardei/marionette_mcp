@@ -1,3 +1,6 @@
+import 'package:marionette_flutter/src/binding/contract_versions.dart';
+// @marionette-codec-boundary: informational VM extension envelopes
+
 import 'package:marionette_flutter/src/binding/marionette_extension_result.dart';
 import 'package:marionette_flutter/src/binding/register_extension.dart';
 import 'package:marionette_flutter/src/binding/register_extension_internal.dart';
@@ -54,7 +57,12 @@ void registerInfoExtensions({
     name: 'marionette.interactiveElements',
     callback: (params) async {
       final elements = elementTreeFinder.findInteractiveElements();
-      return MarionetteExtensionResult.success({'elements': elements});
+      return MarionetteExtensionResult.success({
+        'schemaVersion': marionetteContractSchemaVersion,
+        'protocolVersion': marionetteContractProtocolVersion,
+        'elements': elements,
+        'count': elements.length,
+      });
     },
   );
 
@@ -65,11 +73,17 @@ void registerInfoExtensions({
       if (logStore == null) {
         return MarionetteExtensionResult.error(0, _logCollectorMissingHelp);
       }
-      final logs = logStore.getLogs();
-      return MarionetteExtensionResult.success({
-        'logs': logs,
-        'count': logs.length,
-      });
+      final rawAfterSequence = params['afterSequence'];
+      final afterSequence =
+          rawAfterSequence == null ? null : int.tryParse(rawAfterSequence);
+      if (rawAfterSequence != null && afterSequence == null) {
+        return MarionetteExtensionResult.invalidParams(
+          'Parameter "afterSequence" must be an integer.',
+        );
+      }
+      return MarionetteExtensionResult.success(
+        logStore.getLogSnapshot(afterSequence: afterSequence),
+      );
     },
   );
 

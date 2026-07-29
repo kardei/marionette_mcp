@@ -1,7 +1,8 @@
 import 'dart:async';
 
 import 'package:logging/logging.dart';
-import 'package:marionette_flutter/marionette_flutter.dart';
+import 'package:marionette_flutter/src/services/log_collector.dart';
+import 'package:marionette_flutter/src/services/log_entry.dart';
 
 /// A [LogCollector] that automatically subscribes to [Logger.root.onRecord]
 /// and provides rich formatting including level, logger name, errors, and
@@ -22,9 +23,11 @@ import 'package:marionette_flutter/marionette_flutter.dart';
 /// ```
 class LoggingLogCollector implements LogCollector {
   StreamSubscription<LogRecord>? _subscription;
+  StreamSubscription<LogRecord>? _structuredSubscription;
 
   @override
   void start(void Function(String log) onLog) {
+    _structuredSubscription?.cancel();
     _subscription?.cancel();
     _subscription = Logger.root.onRecord.listen((record) {
       onLog(_formatLogRecord(record));
@@ -32,9 +35,29 @@ class LoggingLogCollector implements LogCollector {
   }
 
   @override
+  void startStructured(void Function(LogEntry entry) onLog) {
+    _subscription?.cancel();
+    _structuredSubscription?.cancel();
+    _structuredSubscription = Logger.root.onRecord.listen((record) {
+      onLog(
+        LogEntry(
+          timestamp: record.time,
+          severity: _severityFor(record.level),
+          source: record.loggerName,
+          message: record.message,
+          error: record.error,
+          stack: record.stackTrace,
+        ),
+      );
+    });
+  }
+
+  @override
   void dispose() {
     _subscription?.cancel();
+    _structuredSubscription?.cancel();
     _subscription = null;
+    _structuredSubscription = null;
   }
 
   String _formatLogRecord(LogRecord record) {
@@ -63,6 +86,30 @@ class LoggingLogCollector implements LogCollector {
     }
 
     return buffer.toString();
+  }
+
+  LogSeverity _severityFor(Level level) {
+    switch (level.name.toUpperCase()) {
+      case 'ALL':
+      case 'FINEST':
+      case 'FINER':
+      case 'FINE':
+        return LogSeverity.debug;
+      case 'CONFIG':
+      case 'INFO':
+        return LogSeverity.info;
+      case 'WARNING':
+        return LogSeverity.warning;
+      case 'SEVERE':
+        return LogSeverity.error;
+      case 'SHOUT':
+        return LogSeverity.fatal;
+      default:
+        throw LogEntryFormatException(
+          'unsupported logging level "${level.name}"',
+          path: 'severity',
+        );
+    }
   }
 
   String _formatTime(DateTime time) {

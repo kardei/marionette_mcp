@@ -52,3 +52,4 @@ class MarionetteExtensionInvalidParams extends MarionetteExtensionResult {
   /// Human-readable detail about which parameter is invalid/missing.
   final String detail;
 }
+// @marionette-codec-boundary: explicit JSON/VM/MCP codec boundary

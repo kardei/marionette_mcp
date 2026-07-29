@@ -65,3 +65,4 @@ class NativeScreencastServer implements ScreencastServer {
     _activeDelegate = null;
   }
 }
+// @marionette-codec-boundary: explicit JSON/VM/MCP codec boundary

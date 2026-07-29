@@ -1,7 +1,10 @@
 import 'package:logging/logging.dart' as logging;
+import 'package:marionette_mcp/src/contracts.dart';
 import 'package:marionette_mcp/src/formatting.dart';
+import 'package:marionette_mcp/src/vm_service/tools/capture_evidence.dart';
 import 'package:marionette_mcp/src/vm_service/tools/tool_runner.dart';
 import 'package:marionette_mcp/src/vm_service/vm_service_connector.dart';
+import 'package:marionette_mcp/src/vm_service/vm_service_connector_contracts.dart';
 import 'package:mcp_dart/mcp_dart.dart';
 
 /// Registers read-only MCP tools that inspect the running app:
@@ -25,18 +28,101 @@ void registerInspectionTools(
       callback: (args, extra) async {
         logger.info('Getting interactive elements');
         return runTool(logger, 'get interactive elements', () async {
-          final response = await connector.getInteractiveElements();
-          final elements = response['elements'] as List<dynamic>;
+          final snapshot = await connector.getInteractiveElementSnapshot();
 
           final buffer = StringBuffer()
-            ..writeln('Found ${elements.length} interactive element(s):\n');
+            ..writeln('Found ${snapshot.count} interactive element(s):\n');
 
-          for (final element in elements) {
-            buffer.writeln(formatElement(element as Map<String, dynamic>));
+          for (final element in snapshot.elements) {
+            buffer.writeln(formatElement(element.toJson()));
           }
 
           return CallToolResult(
             content: [TextContent(text: buffer.toString())],
+            structuredContent: snapshot.toJson(),
+          );
+        });
+      },
+    )
+    ..registerTool(
+      'capture',
+      description:
+          'Atomically saves a read-only UI checkpoint: elements.json, logs.json with cursor delta, and PNG screenshots. It never performs gestures or other UI actions. The output directory must not already exist.',
+      annotations: const ToolAnnotations(
+        title: 'Capture Read-Only Evidence',
+        readOnlyHint: true,
+        idempotentHint: false,
+      ),
+      inputSchema: ToolInputSchema(
+        properties: {
+          'output_dir': JsonSchema.string(
+            description: 'New checkpoint evidence directory to publish.',
+          ),
+          'after_sequence': JsonSchema.number(
+            description: 'Only include logs after this cursor.',
+          ),
+        },
+        required: ['output_dir'],
+      ),
+      callback: (args, extra) async {
+        logger.info('Capturing read-only evidence');
+        return runTool(logger, 'capture read-only evidence', () async {
+          final rawOutputDirectory = args['output_dir'];
+          if (rawOutputDirectory is! String ||
+              rawOutputDirectory.trim().isEmpty) {
+            throw const ContractFormatException(
+              'output_dir must be a non-empty string',
+              path: 'output_dir',
+            );
+          }
+          final rawAfterSequence = args['after_sequence'];
+          if (rawAfterSequence != null && rawAfterSequence is! int) {
+            throw const ContractFormatException(
+              'after_sequence must be an integer',
+              path: 'after_sequence',
+            );
+          }
+
+          final elements = await connector.getInteractiveElementSnapshot();
+          final logs = await connector.getLogSnapshot(
+            afterSequence: rawAfterSequence as int?,
+          );
+          final screenshotResponse = await connector.takeScreenshots();
+          final rawScreenshots = screenshotResponse['screenshots'];
+          if (rawScreenshots is! List) {
+            throw const ContractFormatException(
+              'screenshots must be a list',
+              path: 'screenshots',
+            );
+          }
+          final screenshots = <String>[];
+          for (var i = 0; i < rawScreenshots.length; i++) {
+            final screenshot = rawScreenshots[i];
+            if (screenshot is! String) {
+              throw ContractFormatException(
+                'screenshot must be a base64 string',
+                path: 'screenshots[$i]',
+              );
+            }
+            screenshots.add(screenshot);
+          }
+
+          final evidence = await publishCaptureEvidence(
+            outputDirectory: rawOutputDirectory,
+            elements: elements,
+            logs: logs,
+            screenshots: screenshots,
+          );
+          return CallToolResult(
+            content: [
+              TextContent(
+                text: 'Capture saved to ${evidence.outputDirectory}\n'
+                    '  elements.json (${elements.count} elements)\n'
+                    '  logs.json (${logs.count} entries, cursor ${logs.cursor})\n'
+                    '  screenshots/ (${evidence.screenshotPaths.length} image(s))',
+              ),
+            ],
+            structuredContent: evidence.toJson(),
           );
         });
       },
@@ -49,18 +135,35 @@ void registerInspectionTools(
         title: 'Get Application Logs',
         readOnlyHint: true,
       ),
-      inputSchema: const ToolInputSchema(properties: {}),
+      inputSchema: ToolInputSchema(
+        properties: {
+          'after_sequence': JsonSchema.number(
+            description: 'Only return entries after this log sequence cursor.',
+          ),
+        },
+      ),
       callback: (args, extra) async {
         logger.info('Getting application logs');
 
         try {
-          final response = await connector.getLogs();
-          final logs = response['logs'] as List;
-          final count = response['count'] as int;
+          final rawAfterSequence = args['after_sequence'];
+          if (rawAfterSequence != null && rawAfterSequence is! int) {
+            throw const ContractFormatException(
+              'after_sequence must be an integer',
+              path: 'after_sequence',
+            );
+          }
+          final afterSequence = rawAfterSequence as int?;
+          final snapshot = await connector.getLogSnapshot(
+            afterSequence: afterSequence,
+          );
+          final logs = snapshot.legacyLogs;
+          final count = snapshot.count;
 
           if (count == 0) {
             return CallToolResult(
               content: [const TextContent(text: 'No logs collected')],
+              structuredContent: snapshot.toJson(),
             );
           }
 
@@ -75,6 +178,15 @@ void registerInspectionTools(
 
           return CallToolResult(
             content: [TextContent(text: buffer.toString())],
+            structuredContent: snapshot.toJson(),
+          );
+        } on ContractFormatException catch (err) {
+          logger.warning('Failed to get logs', err);
+          return CallToolResult(
+            isError: true,
+            content: [TextContent(text: err.toString())],
+            structuredContent:
+                ContractFailure.fromException('get_logs', err).toJson(),
           );
         } on VmServiceExtensionException catch (err) {
           // Surface the VM service's own error message verbatim — it carries
@@ -106,8 +218,24 @@ void registerInspectionTools(
         logger.info('Taking screenshots');
         return runTool(logger, 'take screenshots', () async {
           final response = await connector.takeScreenshots();
-          final screenshots =
-              (response['screenshots'] as List<dynamic>).cast<String>();
+          final rawScreenshots = response['screenshots'];
+          if (rawScreenshots is! List) {
+            throw const ContractFormatException(
+              'screenshots must be a list',
+              path: 'screenshots',
+            );
+          }
+          final screenshots = <String>[];
+          for (var i = 0; i < rawScreenshots.length; i++) {
+            final screenshot = rawScreenshots[i];
+            if (screenshot is! String) {
+              throw ContractFormatException(
+                'screenshot must be a base64 string',
+                path: 'screenshots[$i]',
+              );
+            }
+            screenshots.add(screenshot);
+          }
 
           if (screenshots.isEmpty) {
             return CallToolResult(
@@ -126,3 +254,4 @@ void registerInspectionTools(
       },
     );
 }
+// @marionette-codec-boundary: explicit JSON/VM/MCP codec boundary

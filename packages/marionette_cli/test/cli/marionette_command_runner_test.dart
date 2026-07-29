@@ -40,6 +40,7 @@ void main() {
         'take-screenshots',
         'record-video',
         'get-logs',
+        'capture',
         'hot-reload',
         'hot-restart',
         'doctor',
@@ -82,6 +83,12 @@ void main() {
     test('list returns 0 with empty registry', () async {
       final exitCode = await runner.run(['list']);
       expect(exitCode, equals(0));
+    });
+
+    test('global format accepts json', () {
+      final option = runner.argParser.options['format'];
+      expect(option?.allowed, containsAll(['text', 'json']));
+      expect(option?.defaultsTo, equals('text'));
     });
   });
 }

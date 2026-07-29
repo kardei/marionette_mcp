@@ -1,5 +1,4 @@
 import 'dart:io';
-
 import 'package:args/command_runner.dart';
 
 class HelpAiCommand extends Command<int> {

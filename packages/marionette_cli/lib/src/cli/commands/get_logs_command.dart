@@ -2,10 +2,17 @@ import 'dart:io';
 
 import 'package:marionette_cli/src/cli/instance_command.dart';
 import 'package:marionette_cli/src/instance_registry.dart';
+import 'package:marionette_cli/src/cli/output.dart';
 import 'package:marionette_mcp/src/vm_service/vm_service_connector.dart';
+import 'package:marionette_mcp/src/vm_service/vm_service_connector_contracts.dart';
 
 class LogsCommand extends InstanceCommand {
-  LogsCommand(this._registry);
+  LogsCommand(this._registry) {
+    argParser.addOption(
+      'after-sequence',
+      help: 'Only show logs with a sequence greater than this cursor.',
+    );
+  }
 
   final InstanceRegistry _registry;
 
@@ -20,9 +27,22 @@ class LogsCommand extends InstanceCommand {
 
   @override
   Future<int> execute(VmServiceConnector connector) async {
-    final response = await connector.getLogs();
-    final logs = response['logs'] as List;
-    final count = response['count'] as int;
+    final rawAfter = argResults?['after-sequence'] as String?;
+    final afterSequence = rawAfter == null ? null : int.tryParse(rawAfter);
+    if (rawAfter != null && afterSequence == null) {
+      usageException('--after-sequence must be an integer.');
+    }
+    final snapshot = await connector.getLogSnapshot(
+      afterSequence: afterSequence,
+    );
+
+    if (outputFormat == OutputFormat.json) {
+      writeJson(snapshot);
+      return 0;
+    }
+
+    final logs = snapshot.legacyLogs;
+    final count = snapshot.count;
 
     if (count == 0) {
       stdout.writeln('No logs collected.');

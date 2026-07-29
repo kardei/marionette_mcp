@@ -1,4 +1,5 @@
 import 'package:logging/logging.dart' as logging;
+import 'package:marionette_mcp/src/contracts.dart';
 import 'package:marionette_mcp/src/version.g.dart' as v;
 import 'package:marionette_mcp/src/vm_service/dynamic_extension_tools.dart';
 import 'package:marionette_mcp/src/vm_service/tools/extension_tools.dart';
@@ -18,6 +19,7 @@ final class VmServiceContext {
 
   final VmServiceConnector connector;
   final logging.Logger _logger;
+  String? _lastConnectedUri;
 
   /// Owns the registry of dynamic extension tools across the lifetime of
   /// this context. Reused across connect/disconnect cycles so a previously
@@ -67,11 +69,12 @@ final class VmServiceContext {
 
           try {
             await connector.connect(uri);
+            late final String bindingVersion;
 
             // Version compatibility check — unwind the connection on mismatch
             // so the next call to connect can start fresh.
             try {
-              final bindingVersion = await connector.getVersion();
+              bindingVersion = await connector.getVersion();
               if (bindingVersion != v.version) {
                 await connector.disconnect();
                 return CallToolResult(
@@ -105,11 +108,17 @@ final class VmServiceContext {
             // MCP tool. Failures here are logged but don't fail the connect —
             // the generic call_custom_extension fallback keeps working.
             await _registerDynamicTools();
+            _lastConnectedUri = uri;
 
             return CallToolResult(
               content: [
                 TextContent(text: 'Successfully connected to app at $uri'),
               ],
+              structuredContent: ConnectionInfo.connected(
+                uri: uri,
+                bindingVersion: bindingVersion,
+                connectedAt: DateTime.now().toUtc(),
+              ).toJson(),
             );
           } catch (err) {
             _logger.severe('Failed to connect to app', err);
@@ -138,6 +147,9 @@ final class VmServiceContext {
               content: [
                 const TextContent(text: 'Successfully disconnected from app'),
               ],
+              structuredContent: ConnectionInfo.disconnected(
+                uri: _lastConnectedUri,
+              ).toJson(),
             );
           } catch (err) {
             _logger.severe('Error during disconnect', err);
@@ -159,3 +171,4 @@ final class VmServiceContext {
 
   void _disableDynamicTools() => _dynamicTools.disableAll();
 }
+// @marionette-codec-boundary: explicit JSON/VM/MCP codec boundary

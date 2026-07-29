@@ -4,69 +4,9 @@ import 'package:logging/logging.dart' as logging;
 import 'package:vm_service/vm_service.dart';
 import 'package:vm_service/vm_service_io.dart';
 
-/// Exception thrown when an operation is attempted without an active connection.
-class NotConnectedException implements Exception {
-  const NotConnectedException();
+import 'package:marionette_mcp/src/vm_service/vm_service_connector_support.dart';
 
-  @override
-  String toString() =>
-      'Not connected to any app. Use app.connect tool first with the VM service URI.';
-}
-
-/// Exception thrown when a VM service extension call fails.
-class VmServiceExtensionException implements Exception {
-  VmServiceExtensionException(
-    this.message, {
-    this.errorCode,
-    this.error,
-    this.stackTrace,
-  });
-
-  final String message;
-  final int? errorCode;
-  final String? error;
-  final String? stackTrace;
-
-  @override
-  String toString() {
-    final buffer = StringBuffer(message);
-    if (error != null) {
-      buffer.write('\nError: $error');
-    }
-    if (stackTrace != null) {
-      buffer.write('\nStack trace: $stackTrace');
-    }
-    return buffer.toString();
-  }
-}
-
-/// Modifier keys accepted by [VmServiceConnector.pressKey].
-///
-/// Must stay in sync with the modifiers the `marionette_flutter`
-/// `KeyboardSimulator` understands; this mirror lets the CLI and MCP server
-/// (which can't import the Flutter package) reject bad input before it reaches
-/// the device.
-const supportedKeyModifiers = {'control', 'shift', 'alt', 'meta'};
-
-/// Validates a comma-separated [modifiers] string against
-/// [supportedKeyModifiers] (case-insensitive).
-///
-/// Returns a human-readable error message listing the offending entries, or
-/// `null` when [modifiers] is null/empty or every entry is supported.
-String? invalidModifiersError(String? modifiers) {
-  if (modifiers == null || modifiers.trim().isEmpty) return null;
-  final invalid = modifiers
-      .split(',')
-      .map((modifier) => modifier.trim())
-      .where((modifier) => modifier.isNotEmpty)
-      .where(
-          (modifier) => !supportedKeyModifiers.contains(modifier.toLowerCase()))
-      .toList();
-  if (invalid.isEmpty) return null;
-  final plural = invalid.length > 1 ? 's' : '';
-  return 'Unsupported modifier$plural: ${invalid.join(', ')}. '
-      'Supported modifiers: ${supportedKeyModifiers.join(', ')}.';
-}
+export 'vm_service_connector_support.dart';
 
 /// Manages connection to a Flutter app's VM service and provides
 /// wrapper methods for custom marionette.* extensions.
@@ -550,56 +490,11 @@ class VmServiceConnector {
     }
   }
 
-  /// Finds the first isolate that has the marionette extensions.
-  ///
-  /// After a hot restart the root isolate is replaced and registers its
-  /// extensions asynchronously, so this polls up to [attempts] times with a
-  /// [delay] between tries before giving up.
-  ///
-  /// Throws an exception if no suitable isolate is found within the retries.
   Future<String> _findIsolateWithMarionetteExtensions({
     int attempts = 1,
     Duration delay = const Duration(milliseconds: 500),
-  }) async {
-    for (var attempt = 0; attempt < attempts; attempt++) {
-      if (attempt > 0) {
-        await Future<void>.delayed(delay);
-      }
-
-      final vm = await _service!.getVM();
-      if (vm.isolates == null || vm.isolates!.isEmpty) {
-        continue;
-      }
-
-      // Find the first isolate that has the marionette.getLogs extension
-      for (final isolateRef in vm.isolates!) {
-        if (isolateRef.id == null) {
-          continue;
-        }
-
-        try {
-          final isolate = await _service!.getIsolate(isolateRef.id!);
-          final hasExtension = isolate.extensionRPCs?.any(
-                (ext) => ext == 'ext.flutter.marionette.getLogs',
-              ) ??
-              false;
-
-          if (hasExtension) {
-            return isolateRef.id!;
-          }
-        } catch (err) {
-          _logger.warning(
-            'Failed to check extensions for isolate ${isolateRef.id}',
-            err,
-          );
-          continue;
-        }
-      }
-    }
-
-    throw Exception(
-      'No isolate found with ext.flutter.marionette.getLogs extension. '
-      'Make sure the Flutter app has marionette_flutter initialized.',
-    );
-  }
+  }) =>
+      findMarionetteIsolate(_service!, _logger,
+          attempts: attempts, delay: delay);
 }
+// @marionette-codec-boundary: explicit JSON/VM/MCP codec boundary

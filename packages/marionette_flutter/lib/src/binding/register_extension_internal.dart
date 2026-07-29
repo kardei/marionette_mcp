@@ -4,7 +4,7 @@ import 'dart:developer' as developer;
 import 'package:flutter/foundation.dart';
 import 'package:marionette_flutter/src/binding/extension_schema.dart';
 import 'package:marionette_flutter/src/binding/marionette_extension_result.dart';
-import 'package:marionette_flutter/src/binding/register_extension.dart';
+import 'package:marionette_flutter/src/binding/register_extension_types.dart';
 
 /// Registers a built-in Marionette service extension.
 ///
@@ -118,3 +118,4 @@ Map<String, String> mergeSchemaDefaults(
   // Caller-supplied values override declared defaults.
   return withDefaults..addAll(parameters);
 }
+// @marionette-codec-boundary: explicit JSON/VM/MCP codec boundary

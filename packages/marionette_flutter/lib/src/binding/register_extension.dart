@@ -1,10 +1,9 @@
 import 'package:marionette_flutter/src/binding/extension_schema.dart';
 import 'package:marionette_flutter/src/binding/marionette_extension_result.dart';
 import 'package:marionette_flutter/src/binding/register_extension_internal.dart';
+import 'package:marionette_flutter/src/binding/register_extension_types.dart';
 
-/// Callback type for Marionette extension handlers.
-typedef MarionetteExtensionCallback = Future<MarionetteExtensionResult>
-    Function(Map<String, String> params);
+export 'package:marionette_flutter/src/binding/register_extension_types.dart';
 
 /// Details about a registered custom extension.
 class ExtensionDetails {

@@ -1,5 +1,3 @@
-import 'dart:io';
-
 import 'package:marionette_cli/src/cli/instance_command.dart';
 import 'package:marionette_cli/src/cli/matcher_builder.dart';
 import 'package:marionette_cli/src/instance_registry.dart';
@@ -67,9 +65,11 @@ class DoubleTapCommand extends InstanceCommand {
     }
 
     final response = await connector.doubleTap(matcher, delayMs: delay);
-    final message =
-        response['message'] as String? ?? 'Successfully double tapped';
-    stdout.writeln(message);
+    writeGestureOutput(
+      gesture: 'double_tap',
+      response: response,
+      fallbackMessage: 'Successfully double tapped',
+    );
     return 0;
   }
 

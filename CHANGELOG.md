@@ -1,5 +1,15 @@
 # Unreleased
 
+- Add backward-compatible structured MCP/CLI contracts for connection info,
+  element snapshots, log cursors, and diagnostic gesture outcomes.
+- Add CLI `--format json` and read-only `capture --output-dir` artifact export.
+- Keep legacy log collection and text responses while adding sequence-based
+  log deltas.
+- Add a read-only MCP capture checkpoint with atomic evidence publication,
+  strict versioned envelopes, and chained framework/root async error logging.
+- Use a finite typed severity vocabulary for structured logs with strict
+  legacy and JSON conversion.
+
 # 0.6.0
 
 - Promote schema-bearing custom extensions to first-class MCP tools via the new `ExtensionInputSchema`/`ExtensionParam` DSL

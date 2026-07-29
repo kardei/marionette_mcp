@@ -1,5 +1,3 @@
-import 'dart:io';
-
 import 'package:marionette_cli/src/cli/instance_command.dart';
 import 'package:marionette_cli/src/instance_registry.dart';
 import 'package:marionette_mcp/src/vm_service/vm_service_connector.dart';
@@ -23,8 +21,11 @@ class PressBackButtonCommand extends InstanceCommand {
   Future<int> execute(VmServiceConnector connector) async {
     final response = await connector.pressBackButton();
 
-    final message = response['message'] as String? ?? 'Back button pressed';
-    stdout.writeln(message);
+    writeGestureOutput(
+      gesture: 'press_back_button',
+      response: response,
+      fallbackMessage: 'Back button pressed',
+    );
     return 0;
   }
 }

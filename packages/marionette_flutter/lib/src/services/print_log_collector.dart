@@ -1,4 +1,5 @@
 import 'package:marionette_flutter/src/services/log_collector.dart';
+import 'package:marionette_flutter/src/services/log_entry.dart';
 
 /// A generic [LogCollector] that can be used with any logging solution.
 ///
@@ -39,10 +40,18 @@ import 'package:marionette_flutter/src/services/log_collector.dart';
 /// ```
 class PrintLogCollector implements LogCollector {
   void Function(String)? _onLog;
+  void Function(LogEntry)? _onStructuredLog;
 
   @override
   void start(void Function(String log) onLog) {
+    _onStructuredLog = null;
     _onLog = onLog;
+  }
+
+  @override
+  void startStructured(void Function(LogEntry entry) onLog) {
+    _onLog = null;
+    _onStructuredLog = onLog;
   }
 
   /// Adds a log entry.
@@ -52,10 +61,23 @@ class PrintLogCollector implements LogCollector {
   /// caller's responsibility.
   void addLog(String message) {
     _onLog?.call(message);
+    _onStructuredLog?.call(LogEntry.fromLegacy(
+      message: message,
+      timestamp: DateTime.now(),
+      severity: 'info',
+      source: 'legacy',
+    ));
+  }
+
+  /// Adds a structured log entry without changing the legacy [addLog] API.
+  void addStructuredLog(LogEntry entry) {
+    _onStructuredLog?.call(entry);
+    _onLog?.call(entry.message);
   }
 
   @override
   void dispose() {
     _onLog = null;
+    _onStructuredLog = null;
   }
 }

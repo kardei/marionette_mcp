@@ -155,3 +155,4 @@ class ScreencastTcpServer implements ScreencastServer {
     }
   }
 }
+// @marionette-codec-boundary: explicit JSON/VM/MCP codec boundary

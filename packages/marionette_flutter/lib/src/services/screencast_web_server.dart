@@ -177,3 +177,4 @@ class ScreencastWebServer implements ScreencastServer {
     ws.send(message.buffer.toJS);
   }
 }
+// @marionette-codec-boundary: explicit JSON/VM/MCP codec boundary

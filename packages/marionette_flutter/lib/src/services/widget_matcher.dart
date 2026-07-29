@@ -218,3 +218,4 @@ class TypeStringMatcher extends WidgetMatcher {
     return <String, dynamic>{'type': typeName};
   }
 }
+// @marionette-codec-boundary: explicit JSON/VM/MCP codec boundary

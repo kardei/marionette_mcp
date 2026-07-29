@@ -6,44 +6,12 @@ import 'package:marionette_cli/src/cli/instance_command.dart';
 import 'package:marionette_cli/src/instance_registry.dart';
 import 'package:marionette_mcp/src/video/ffmpeg_process.dart';
 import 'package:marionette_mcp/src/video/recording_session.dart';
-import 'package:marionette_mcp/src/video/tcp_frame_reader.dart';
 import 'package:marionette_mcp/src/video/video_options.dart';
-import 'package:marionette_mcp/src/video/video_recorder.dart';
 import 'package:marionette_mcp/src/video/ws_frame_server.dart';
 import 'package:marionette_mcp/src/vm_service/vm_service_connector.dart';
+import 'package:marionette_cli/src/cli/commands/record_video_support.dart';
 
-/// Signature for checking whether ffmpeg is available.
-typedef FfmpegAvailabilityChecker = Future<bool> Function({String ffmpegPath});
-
-/// Signature for creating a RecordingSession with its full pipeline.
-typedef RecordingSessionFactory = Future<RecordingSession> Function({
-  required int frameServerPort,
-  required String outputFile,
-  required int width,
-  required int height,
-  required String ffmpegPath,
-});
-
-/// Signature for creating a RecordingSession using a WebSocket frame source.
-typedef WsRecordingSessionFactory = Future<RecordingSession> Function({
-  required FrameSource frameSource,
-  required String outputFile,
-  required int width,
-  required int height,
-  required String ffmpegPath,
-});
-
-/// Signature for binding a [WebSocketFrameServer] on an OS-assigned port.
-typedef WsFrameServerFactory = Future<WebSocketFrameServer> Function();
-
-/// The executable and any prefix arguments for a platform's file-open command.
-typedef OpenCommand = ({String executable, List<String> args});
-
-/// Signature for resolving the platform's file-open command.
-typedef OpenCommandResolver = OpenCommand? Function();
-
-/// Signature for creating an [AdbHelper] instance.
-typedef AdbHelperFactory = AdbHelper Function();
+export 'record_video_support.dart';
 
 /// Records a video of a running Flutter app via the screencast pipeline.
 class RecordVideoCommand extends InstanceCommand {
@@ -56,11 +24,11 @@ class RecordVideoCommand extends InstanceCommand {
     OpenCommandResolver? openCommandResolver,
     AdbHelperFactory? adbHelperFactory,
   })  : _ffmpegChecker = ffmpegChecker ?? FfmpegProcess.isAvailable,
-        _sessionFactory = sessionFactory ?? _defaultSessionFactory,
-        _wsSessionFactory = wsSessionFactory ?? _defaultWsSessionFactory,
+        _sessionFactory = sessionFactory ?? defaultSessionFactory,
+        _wsSessionFactory = wsSessionFactory ?? defaultWsSessionFactory,
         _wsFrameServerFactory =
             wsFrameServerFactory ?? WebSocketFrameServer.bind,
-        _openCommandResolver = openCommandResolver ?? _defaultOpenCommand,
+        _openCommandResolver = openCommandResolver ?? defaultOpenCommand,
         _adbHelperFactory = adbHelperFactory ?? AdbHelper.new {
     argParser
       ..addOption(
@@ -134,17 +102,6 @@ class RecordVideoCommand extends InstanceCommand {
   @override
   String get description => 'Record a video of the running Flutter app.';
 
-  /// Transport negotiation flow:
-  ///
-  /// 1. **Probe** — call startScreencast (no wsPort) to discover the transport
-  ///    type (TCP for native, WS for web) and viewport dimensions.
-  /// 2. **Compute video size** — use the Flutter-reported frameWidth/frameHeight
-  ///    as the single source of truth for ffmpeg dimensions.
-  /// 3. **Start frame source** — for TCP, the Flutter app already opened a
-  ///    server during the probe; for WS, the MCP side binds a WebSocket server
-  ///    and passes the port back via a second startScreencast call.
-  /// 4. **Record** — consume frames until duration elapses or SIGINT.
-  /// 5. **Finalize** — stop session, close ffmpeg, report results.
   @override
   Future<int> execute(VmServiceConnector connector) async {
     final outputPath = argResults!['output'] as String;
@@ -179,7 +136,6 @@ class RecordVideoCommand extends InstanceCommand {
       }
     }
 
-    // Validate numeric args before any side effects.
     if ((widthStr == null) != (heightStr == null)) {
       stderr.writeln('Error: --width and --height must be specified together');
       return 1;
@@ -224,7 +180,6 @@ class RecordVideoCommand extends InstanceCommand {
       return 1;
     }
 
-    // Create output directory if needed.
     File(outputPath).parent.createSync(recursive: true);
 
     // Start the screencast. For TCP transport (native), the Flutter app opens
@@ -442,7 +397,6 @@ class RecordVideoCommand extends InstanceCommand {
 
       session.start();
 
-      // Wait for duration or SIGINT.
       final completer = Completer<void>();
       Timer? durationTimer;
 
@@ -461,14 +415,6 @@ class RecordVideoCommand extends InstanceCommand {
       durationTimer?.cancel();
       await sigintSub.cancel();
 
-      // Stop and report results.
-      //
-      // Order matters: stop the Flutter-side screencast FIRST so that the
-      // ScreencastService timer is cancelled and any in-flight frame
-      // completes before we close the local TCP socket in session.stop().
-      // Without this ordering the Flutter app writes one more frame to our
-      // already-closing socket, triggering an unhandled "Broken pipe"
-      // SocketException in the Flutter isolate.
       try {
         await connector.stopScreencast();
       } catch (_) {
@@ -481,7 +427,7 @@ class RecordVideoCommand extends InstanceCommand {
         result = await session.stop();
       } on Exception catch (e) {
         stderr.writeln('Error: Recording failed during finalization: $e');
-        _cleanupOutputFile(outputPath);
+        cleanupRecordingOutputFile(outputPath);
         return 1;
       } finally {
         // Second call is a no-op on the Flutter side (isActive is already
@@ -489,7 +435,7 @@ class RecordVideoCommand extends InstanceCommand {
         try {
           await connector.stopScreencast();
         } catch (_) {}
-        await _cleanupAdbReverse(adbReversePort);
+        await cleanupAdbReverse(adbReversePort, _adbHelperFactory);
       }
       stdout.writeln(
         'Recording complete: ${result.outputFile} '
@@ -515,7 +461,7 @@ class RecordVideoCommand extends InstanceCommand {
       }
 
       return 0;
-    } on _AdbFallbackException {
+    } on AdbFallbackException {
       // Error already printed by _startReverseWsSession.
       try {
         await connector.stopScreencast();
@@ -527,179 +473,28 @@ class RecordVideoCommand extends InstanceCommand {
       } catch (_) {
         // Don't mask the original error with a cleanup failure.
       }
-      await _cleanupAdbReverse(adbReversePort);
+      await cleanupAdbReverse(adbReversePort, _adbHelperFactory);
       rethrow;
     }
   }
 
-  /// Sets up a reverse-WS session: checks adb, binds a WS server, runs
-  /// `adb reverse`, tears down the TCP screencast, and starts a WS screencast.
-  ///
-  /// Returns the session and the port used for adb reverse (for cleanup).
-  /// Throws [_AdbFallbackException] if adb is unavailable or reverse fails.
-  Future<_ReverseWsResult> _startReverseWsSession({
+  Future<ReverseWsResult> _startReverseWsSession({
     required VmServiceConnector connector,
     required ({int width, int height})? effectiveSize,
     required ({int width, int height}) videoSize,
     required String outputPath,
     required String ffmpegPath,
   }) async {
-    final adb = _adbHelperFactory();
-
-    if (!await adb.isAvailable()) {
-      stderr.writeln(
-        "Error: 'adb' not found on PATH. The Android device's frame port is "
-        'not directly reachable, so adb is needed to set up a reverse tunnel. '
-        'Add the Android SDK platform-tools to your PATH, or specify '
-        '--transport tcp with manual port forwarding.',
-      );
-      throw _AdbFallbackException();
-    }
-
-    final wsServer = await _wsFrameServerFactory();
-    final adbResult = await adb.setupReverse(wsServer.port);
-    if (!adbResult.success) {
-      await wsServer.close();
-      stderr.writeln(
-        "Error: 'adb reverse' failed: ${adbResult.stderr}. "
-        "Make sure a single device is connected (use 'adb devices' to check), "
-        'or specify --transport tcp and forward the frame port manually with '
-        "'adb forward tcp:PORT tcp:PORT'.",
-      );
-      throw _AdbFallbackException();
-    }
-
-    try {
-      // Tear down the Flutter TCP server before starting WS screencast.
-      await connector.stopScreencast();
-
-      await connector.startScreencast(
-        maxWidth: effectiveSize?.width,
-        maxHeight: effectiveSize?.height,
-        wsPort: wsServer.port,
-      );
-
-      final session = await _wsSessionFactory(
-        frameSource: wsServer,
-        outputFile: outputPath,
-        width: videoSize.width,
-        height: videoSize.height,
-        ffmpegPath: ffmpegPath,
-      );
-
-      return _ReverseWsResult(session: session, adbReversePort: wsServer.port);
-    } catch (_) {
-      await wsServer.close();
-      await _cleanupAdbReverse(wsServer.port);
-      rethrow;
-    }
-  }
-
-  /// Best-effort cleanup of adb reverse tunnel.
-  Future<void> _cleanupAdbReverse(int? port) async {
-    if (port == null) return;
-    try {
-      final adb = _adbHelperFactory();
-      await adb.removeReverse(port);
-    } catch (_) {
-      // Best-effort — don't let cleanup failure mask the real error.
-    }
-  }
-
-  static void _cleanupOutputFile(String path) {
-    try {
-      final file = File(path);
-      if (file.existsSync()) {
-        file.deleteSync();
-      }
-    } catch (_) {
-      // Best-effort cleanup — don't let a delete failure mask the real error.
-    }
-  }
-
-  static Future<RecordingSession> _defaultSessionFactory({
-    required int frameServerPort,
-    required String outputFile,
-    required int width,
-    required int height,
-    required String ffmpegPath,
-  }) async {
-    final frameReader = TcpFrameReader(
-      host: 'localhost',
-      port: frameServerPort,
-    );
-    await frameReader.connect();
-    return _buildSession(
-      frameSource: frameReader,
-      outputFile: outputFile,
-      width: width,
-      height: height,
+    return startReverseWsSession(
+      connector: connector,
+      effectiveSize: effectiveSize,
+      videoSize: videoSize,
+      outputPath: outputPath,
       ffmpegPath: ffmpegPath,
+      wsFrameServerFactory: _wsFrameServerFactory,
+      wsSessionFactory: _wsSessionFactory,
+      adbHelperFactory: _adbHelperFactory,
     );
-  }
-
-  static Future<RecordingSession> _defaultWsSessionFactory({
-    required FrameSource frameSource,
-    required String outputFile,
-    required int width,
-    required int height,
-    required String ffmpegPath,
-  }) {
-    return _buildSession(
-      frameSource: frameSource,
-      outputFile: outputFile,
-      width: width,
-      height: height,
-      ffmpegPath: ffmpegPath,
-    );
-  }
-
-  static Future<RecordingSession> _buildSession({
-    required FrameSource frameSource,
-    required String outputFile,
-    required int width,
-    required int height,
-    required String ffmpegPath,
-  }) async {
-    final options = VideoOptions(
-      width: width,
-      height: height,
-      outputFile: outputFile,
-    );
-    final ffmpeg = await FfmpegProcess.start(
-      options: options,
-      ffmpegPath: ffmpegPath,
-    );
-    final recorder = VideoRecorder(
-      VideoRecorderOptions(fps: options.fps, width: width, height: height),
-      ffmpeg,
-    );
-    return RecordingSession(
-      frameSource: frameSource,
-      videoRecorder: recorder,
-      ffmpegCloseable: ffmpeg,
-      outputFile: outputFile,
-    );
-  }
-
-  static OpenCommand? _defaultOpenCommand() {
-    if (Platform.isLinux) return (executable: 'xdg-open', args: <String>[]);
-    if (Platform.isMacOS) return (executable: 'open', args: <String>[]);
-    if (Platform.isWindows) {
-      return (executable: 'cmd', args: ['/c', 'start', '']);
-    }
-    return null;
   }
 }
-
-/// Result of [RecordVideoCommand._startReverseWsSession].
-class _ReverseWsResult {
-  _ReverseWsResult({required this.session, required this.adbReversePort});
-  final RecordingSession session;
-  final int adbReversePort;
-}
-
-/// Thrown when the ADB fallback path fails with an already-reported error.
-///
-/// The caller catches this to return exit code 1 without re-printing.
-class _AdbFallbackException implements Exception {}
+// @marionette-codec-boundary: explicit JSON/VM/MCP codec boundary

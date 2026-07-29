@@ -3,6 +3,8 @@ import 'dart:io';
 
 import 'package:args/command_runner.dart';
 import 'package:marionette_cli/src/instance_registry.dart';
+import 'package:marionette_cli/src/cli/output.dart' as output;
+import 'package:marionette_mcp/src/contracts.dart';
 import 'package:marionette_mcp/src/vm_service/vm_service_connector.dart';
 
 /// Base class for commands that operate on a connected Flutter app instance.
@@ -16,6 +18,24 @@ abstract class InstanceCommand extends Command<int> {
   /// Subclasses implement this to perform their operation on a connected
   /// [connector].
   Future<int> execute(VmServiceConnector connector);
+
+  output.OutputFormat get outputFormat =>
+      output.outputFormatFrom(globalResults?['format'] as String?);
+
+  void writeJson(Object value) => output.writeJson(value);
+
+  void writeGestureOutput({
+    required String gesture,
+    required Map<String, dynamic> response,
+    required String fallbackMessage,
+  }) {
+    output.writeGestureOutput(
+      format: outputFormat,
+      gesture: gesture,
+      response: response,
+      fallbackMessage: fallbackMessage,
+    );
+  }
 
   @override
   Future<int> run() async {
@@ -72,6 +92,13 @@ abstract class InstanceCommand extends Command<int> {
             ),
           );
       return await execute(connector);
+    } on ContractFormatException catch (e) {
+      if (outputFormat == output.OutputFormat.json) {
+        writeJson(ContractFailure.fromException(name, e));
+      } else {
+        stderr.writeln('Error: $e');
+      }
+      return 1;
     } on SocketException catch (e) {
       final hint = isStateless
           ? 'Check the URI and ensure the app is still running.'
@@ -90,3 +117,4 @@ abstract class InstanceCommand extends Command<int> {
     }
   }
 }
+// @marionette-codec-boundary: explicit JSON/VM/MCP codec boundary

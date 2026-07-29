@@ -131,3 +131,4 @@ Future<CallToolResult> callCustomExtension(
     );
   });
 }
+// @marionette-codec-boundary: explicit JSON/VM/MCP codec boundary

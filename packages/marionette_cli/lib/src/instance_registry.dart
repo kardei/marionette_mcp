@@ -132,3 +132,4 @@ class InstanceRegistry {
       ..sort((a, b) => a.name.compareTo(b.name));
   }
 }
+// @marionette-codec-boundary: explicit JSON/VM/MCP codec boundary

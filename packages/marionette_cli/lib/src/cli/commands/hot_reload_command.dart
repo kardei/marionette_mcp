@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:marionette_cli/src/cli/instance_command.dart';
+import 'package:marionette_cli/src/cli/output.dart';
 import 'package:marionette_cli/src/instance_registry.dart';
 import 'package:marionette_mcp/src/vm_service/vm_service_connector.dart';
 
@@ -23,10 +24,22 @@ class HotReloadCommand extends InstanceCommand {
     final reloaded = await connector.hotReload();
 
     if (reloaded) {
-      stdout.writeln('Hot reload completed successfully.');
+      if (outputFormat == OutputFormat.json) {
+        writeJson(
+          const CliOperationResult(operation: 'hot_reload', success: true),
+        );
+      } else {
+        stdout.writeln('Hot reload completed successfully.');
+      }
       return 0;
     } else {
-      stderr.writeln('Hot reload failed. The app may need a full restart.');
+      if (outputFormat == OutputFormat.json) {
+        writeJson(
+          const CliOperationResult(operation: 'hot_reload', success: false),
+        );
+      } else {
+        stderr.writeln('Hot reload failed. The app may need a full restart.');
+      }
       return 1;
     }
   }

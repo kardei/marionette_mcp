@@ -1,5 +1,3 @@
-import 'dart:io';
-
 import 'package:marionette_cli/src/cli/instance_command.dart';
 import 'package:marionette_cli/src/instance_registry.dart';
 import 'package:marionette_mcp/src/vm_service/vm_service_connector.dart';
@@ -54,9 +52,11 @@ class PressKeyCommand extends InstanceCommand {
     final modifiers = argResults?['modifiers'] as String?;
 
     final response = await connector.pressKey(key, modifiers: modifiers);
-    final message =
-        response['message'] as String? ?? 'Successfully pressed key';
-    stdout.writeln(message);
+    writeGestureOutput(
+      gesture: 'press_key',
+      response: response,
+      fallbackMessage: 'Successfully pressed key',
+    );
     return 0;
   }
 }

@@ -1,3 +1,5 @@
+import 'package:marionette_flutter/src/services/log_entry.dart';
+
 /// Abstract interface for collecting application logs.
 ///
 /// Implementations of this interface are responsible for capturing logs from
@@ -17,6 +19,19 @@ abstract class LogCollector {
   ///
   /// The log message passed to [onLog] should be pre-formatted as a string.
   void start(void Function(String log) onLog);
+
+  /// Starts structured collection in addition to the legacy string API.
+  ///
+  /// Existing collectors only need to implement [start]. The default adapter
+  /// keeps them source-compatible while identifying the event as legacy.
+  void startStructured(void Function(LogEntry entry) onLog) {
+    start((log) => onLog(LogEntry.fromLegacy(
+          message: log,
+          timestamp: DateTime.now(),
+          severity: 'info',
+          source: 'legacy',
+        )));
+  }
 
   /// Stops collecting logs and releases any resources.
   ///

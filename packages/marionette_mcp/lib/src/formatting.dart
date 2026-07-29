@@ -78,3 +78,4 @@ String formatValue(dynamic value) {
   }
   return value.toString();
 }
+// @marionette-codec-boundary: explicit JSON/VM/MCP codec boundary

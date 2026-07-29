@@ -35,3 +35,4 @@ abstract class ScreencastServer {
   /// Stops the screencast and cleans up resources.
   Future<void> stopScreencast();
 }
+// @marionette-codec-boundary: explicit JSON/VM/MCP codec boundary

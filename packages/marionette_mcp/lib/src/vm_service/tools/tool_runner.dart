@@ -1,4 +1,5 @@
 import 'package:logging/logging.dart' as logging;
+import 'package:marionette_mcp/src/contracts.dart';
 import 'package:mcp_dart/mcp_dart.dart';
 
 /// Wraps a tool callback body in the standard error-handling boilerplate:
@@ -15,6 +16,13 @@ Future<CallToolResult> runTool(
 ) async {
   try {
     return await body();
+  } on ContractFormatException catch (err) {
+    logger.warning('Failed to $operation', err);
+    return CallToolResult(
+      isError: true,
+      content: [TextContent(text: err.toString())],
+      structuredContent: ContractFailure.fromException(operation, err).toJson(),
+    );
   } catch (err) {
     logger.warning('Failed to $operation', err);
     return CallToolResult(
@@ -23,3 +31,4 @@ Future<CallToolResult> runTool(
     );
   }
 }
+// @marionette-codec-boundary: explicit JSON/VM/MCP codec boundary
