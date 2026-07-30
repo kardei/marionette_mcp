@@ -15,6 +15,60 @@ class GestureDispatcher {
 
   int _nextPointerId = 1;
 
+  int get _viewId =>
+      WidgetsBinding.instance.platformDispatcher.implicitView?.viewId ?? 0;
+
+  PointerAddedEvent _added(Offset position,
+          [int device = _kDeviceId,
+          PointerDeviceKind kind = PointerDeviceKind.touch]) =>
+      PointerAddedEvent(
+          viewId: _viewId, position: position, kind: kind, device: device);
+
+  PointerDownEvent _down(int pointer, Offset position,
+          [int buttons = kPrimaryButton,
+          int device = _kDeviceId,
+          PointerDeviceKind kind = PointerDeviceKind.touch]) =>
+      PointerDownEvent(
+        viewId: _viewId,
+        pointer: pointer,
+        position: position,
+        kind: kind,
+        buttons: buttons,
+        device: device,
+      );
+
+  PointerUpEvent _up(int pointer, Offset position,
+          [int buttons = 0,
+          int device = _kDeviceId,
+          PointerDeviceKind kind = PointerDeviceKind.touch]) =>
+      PointerUpEvent(
+        viewId: _viewId,
+        pointer: pointer,
+        position: position,
+        kind: kind,
+        buttons: buttons,
+        device: device,
+      );
+
+  PointerRemovedEvent _removed(Offset position,
+          [int device = _kDeviceId,
+          PointerDeviceKind kind = PointerDeviceKind.touch]) =>
+      PointerRemovedEvent(
+          viewId: _viewId, position: position, kind: kind, device: device);
+
+  PointerMoveEvent _move(int pointer, Offset position,
+          [Offset delta = Offset.zero,
+          int device = _kDeviceId,
+          PointerDeviceKind kind = PointerDeviceKind.touch]) =>
+      PointerMoveEvent(
+        viewId: _viewId,
+        pointer: pointer,
+        position: position,
+        delta: delta,
+        kind: kind,
+        device: device,
+      );
+
   /// Simulates a tap on an element that matches the given [matcher].
   ///
   /// If [matcher] is a [CoordinatesMatcher], taps directly at the specified
@@ -68,15 +122,13 @@ class GestureDispatcher {
     final records = [
       // Pointer down immediately
       [
-        PointerAddedEvent(position: globalPosition, device: _kDeviceId),
-        PointerDownEvent(
-            pointer: pointerId, position: globalPosition, device: _kDeviceId),
+        _added(globalPosition),
+        _down(pointerId, globalPosition),
       ],
       // Pointer up after a short delay, then remove the device
       [
-        PointerUpEvent(
-            pointer: pointerId, position: globalPosition, device: _kDeviceId),
-        PointerRemovedEvent(position: globalPosition, device: _kDeviceId),
+        _up(pointerId, globalPosition),
+        _removed(globalPosition),
       ],
     ];
 
@@ -125,33 +177,15 @@ class GestureDispatcher {
     final records = [
       // Mouse moves in and presses the requested button.
       [
-        PointerAddedEvent(
-          position: globalPosition,
-          kind: PointerDeviceKind.mouse,
-          device: _kMouseDeviceId,
-        ),
-        PointerDownEvent(
-          pointer: pointerId,
-          position: globalPosition,
-          kind: PointerDeviceKind.mouse,
-          buttons: buttons,
-          device: _kMouseDeviceId,
-        ),
+        _added(globalPosition, _kMouseDeviceId, PointerDeviceKind.mouse),
+        _down(pointerId, globalPosition, buttons, _kMouseDeviceId,
+            PointerDeviceKind.mouse),
       ],
       // Button released (buttons: 0), then the device is removed.
       [
-        PointerUpEvent(
-          pointer: pointerId,
-          position: globalPosition,
-          kind: PointerDeviceKind.mouse,
-          buttons: 0,
-          device: _kMouseDeviceId,
-        ),
-        PointerRemovedEvent(
-          position: globalPosition,
-          kind: PointerDeviceKind.mouse,
-          device: _kMouseDeviceId,
-        ),
+        _up(pointerId, globalPosition, 0, _kMouseDeviceId,
+            PointerDeviceKind.mouse),
+        _removed(globalPosition, _kMouseDeviceId, PointerDeviceKind.mouse),
       ],
     ];
 
@@ -252,9 +286,8 @@ class GestureDispatcher {
 
     final records = [
       [
-        PointerAddedEvent(position: globalPosition, device: _kDeviceId),
-        PointerDownEvent(
-            pointer: pointerId, position: globalPosition, device: _kDeviceId),
+        _added(globalPosition),
+        _down(pointerId, globalPosition),
       ],
     ];
 
@@ -267,9 +300,8 @@ class GestureDispatcher {
     // Release
     await _handlePointerEventRecord([
       [
-        PointerUpEvent(
-            pointer: pointerId, position: globalPosition, device: _kDeviceId),
-        PointerRemovedEvent(position: globalPosition, device: _kDeviceId),
+        _up(pointerId, globalPosition),
+        _removed(globalPosition),
       ],
     ]);
   }
@@ -372,20 +404,12 @@ class GestureDispatcher {
     // Phase 1: Both fingers down
     final records = <List<PointerEvent>>[
       [
-        PointerAddedEvent(position: start1, device: _kDeviceId),
-        PointerDownEvent(
-          pointer: pointer1Id,
-          position: start1,
-          device: _kDeviceId,
-        ),
+        _added(start1),
+        _down(pointer1Id, start1),
       ],
       [
-        PointerAddedEvent(position: start2, device: _kSecondDeviceId),
-        PointerDownEvent(
-          pointer: pointer2Id,
-          position: start2,
-          device: _kSecondDeviceId,
-        ),
+        _added(start2, _kSecondDeviceId),
+        _down(pointer2Id, start2, 0, _kSecondDeviceId),
       ],
     ];
 
@@ -397,16 +421,8 @@ class GestureDispatcher {
       final pos2 = finger2(currentDistance);
 
       records.add([
-        PointerMoveEvent(
-          pointer: pointer1Id,
-          position: pos1,
-          device: _kDeviceId,
-        ),
-        PointerMoveEvent(
-          pointer: pointer2Id,
-          position: pos2,
-          device: _kSecondDeviceId,
-        ),
+        _move(pointer1Id, pos1),
+        _move(pointer2Id, pos2, Offset.zero, _kSecondDeviceId),
       ]);
     }
 
@@ -416,20 +432,12 @@ class GestureDispatcher {
 
     records.addAll([
       [
-        PointerUpEvent(
-          pointer: pointer1Id,
-          position: end1,
-          device: _kDeviceId,
-        ),
-        PointerUpEvent(
-          pointer: pointer2Id,
-          position: end2,
-          device: _kSecondDeviceId,
-        ),
+        _up(pointer1Id, end1),
+        _up(pointer2Id, end2, 0, _kSecondDeviceId),
       ],
       [
-        PointerRemovedEvent(position: end1, device: _kDeviceId),
-        PointerRemovedEvent(position: end2, device: _kSecondDeviceId),
+        _removed(end1),
+        _removed(end2, _kSecondDeviceId),
       ],
     ]);
 
@@ -454,25 +462,19 @@ class GestureDispatcher {
       final stepDelta = position - previousPosition;
 
       moveRecords.add([
-        PointerMoveEvent(
-          pointer: pointerId,
-          position: position,
-          delta: stepDelta,
-          device: _kDeviceId,
-        ),
+        _move(pointerId, position, stepDelta),
       ]);
     }
 
     final records = [
       [
-        PointerAddedEvent(position: from, device: _kDeviceId),
-        PointerDownEvent(
-            pointer: pointerId, position: from, device: _kDeviceId),
+        _added(from),
+        _down(pointerId, from),
       ],
       ...moveRecords,
       [
-        PointerUpEvent(pointer: pointerId, position: to, device: _kDeviceId),
-        PointerRemovedEvent(position: to, device: _kDeviceId),
+        _up(pointerId, to),
+        _removed(to),
       ],
     ];
 

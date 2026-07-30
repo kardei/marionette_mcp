@@ -8,6 +8,47 @@ import 'package:marionette_flutter/src/services/widget_finder.dart';
 const _timeout = Timeout(Duration(seconds: 10));
 
 void main() {
+  testWidgets(
+    'tap triggers a NavigationBar destination callback',
+    timeout: _timeout,
+    (WidgetTester tester) async {
+      int? selectedIndex;
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: const SizedBox.shrink(),
+            bottomNavigationBar: NavigationBar(
+              onDestinationSelected: (index) => selectedIndex = index,
+              destinations: const [
+                NavigationDestination(
+                  key: ValueKey('nav_home'),
+                  icon: Icon(Icons.home_outlined),
+                  label: 'Home',
+                ),
+                NavigationDestination(
+                  key: ValueKey('nav_profile'),
+                  icon: Icon(Icons.person_outline),
+                  label: 'Profile',
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+
+      await tester.runAsync(
+        () => GestureDispatcher().tap(
+          const KeyMatcher('nav_profile'),
+          WidgetFinder(),
+          const MarionetteConfiguration(),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(selectedIndex, 1);
+    },
+  );
+
   group('GestureDispatcher.longPress', () {
     testWidgets(
       'should dispatch PointerDown, wait, then PointerUp with unique device id',
