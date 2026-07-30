@@ -13,6 +13,7 @@ void main() {
     timeout: _timeout,
     (WidgetTester tester) async {
       int? selectedIndex;
+      var settlementCount = 0;
       await tester.pumpWidget(
         MaterialApp(
           home: Scaffold(
@@ -37,7 +38,9 @@ void main() {
       );
 
       await tester.runAsync(
-        () => GestureDispatcher().tap(
+        () => GestureDispatcher(
+          frameSettler: () async => settlementCount++,
+        ).tap(
           const KeyMatcher('nav_profile'),
           WidgetFinder(),
           const MarionetteConfiguration(),
@@ -46,6 +49,7 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(selectedIndex, 1);
+      expect(settlementCount, 1);
     },
   );
 
@@ -112,7 +116,10 @@ void main() {
               .removeGlobalRoute(events.add),
         );
 
-        final dispatcher = GestureDispatcher();
+        var settlementCount = 0;
+        final dispatcher = GestureDispatcher(
+          frameSettler: () async => settlementCount++,
+        );
         await tester.runAsync(() => dispatcher.longPress(
               const CoordinatesMatcher(100, 100),
               WidgetFinder(),
@@ -129,6 +136,7 @@ void main() {
           reason: 'Long press should send exactly one PointerRemovedEvent to '
               'properly clean up pointer state',
         );
+        expect(settlementCount, 1);
       },
     );
   });
@@ -285,6 +293,7 @@ void main() {
       'doubleTap should dispatch two complete tap sequences',
       timeout: _timeout,
       (WidgetTester tester) async {
+        var settlementCount = 0;
         await tester.pumpWidget(
           MaterialApp(home: Scaffold(body: Center(child: Text('Hello')))),
         );
@@ -296,7 +305,9 @@ void main() {
               .removeGlobalRoute(events.add),
         );
 
-        final dispatcher = GestureDispatcher();
+        final dispatcher = GestureDispatcher(
+          frameSettler: () async => settlementCount++,
+        );
         await tester.runAsync(() => dispatcher.doubleTap(
               const CoordinatesMatcher(100, 100),
               WidgetFinder(),
@@ -324,6 +335,7 @@ void main() {
         for (final event in events) {
           expect(event.device, isNot(equals(0)));
         }
+        expect(settlementCount, 1);
       },
     );
 

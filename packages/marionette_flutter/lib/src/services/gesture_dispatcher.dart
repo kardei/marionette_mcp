@@ -1,11 +1,16 @@
 import 'package:flutter/gestures.dart';
 import 'package:flutter/widgets.dart';
 import 'package:marionette_flutter/src/binding/marionette_configuration.dart';
+import 'package:marionette_flutter/src/services/frame_settler.dart';
 import 'package:marionette_flutter/src/services/widget_finder.dart';
 import 'package:marionette_flutter/src/services/widget_matcher.dart';
 
 /// Dispatches gesture events to simulate user interactions.
 class GestureDispatcher {
+  GestureDispatcher(
+      {Future<void> Function() frameSettler = settleStarvedFrames})
+      : _frameSettler = frameSettler;
+
   static const kMaxDelta = 40.0;
   static const kDelay = Duration(milliseconds: 10);
 
@@ -14,6 +19,7 @@ class GestureDispatcher {
   static const _kMouseDeviceId = 3;
 
   int _nextPointerId = 1;
+  final Future<void> Function() _frameSettler;
 
   int get _viewId =>
       WidgetsBinding.instance.platformDispatcher.implicitView?.viewId ?? 0;
@@ -115,24 +121,24 @@ class GestureDispatcher {
     return renderObject.localToGlobal(center);
   }
 
-  Future<void> _dispatchTapAtPosition(Offset globalPosition) async {
+  Future<void> _dispatchTapAtPosition(
+    Offset globalPosition, {
+    bool settleAfter = true,
+  }) async {
     final pointerId = _nextPointerId++;
 
-    // Build the event records
     final records = [
-      // Pointer down immediately
       [
         _added(globalPosition),
         _down(pointerId, globalPosition),
       ],
-      // Pointer up after a short delay, then remove the device
       [
         _up(pointerId, globalPosition),
         _removed(globalPosition),
       ],
     ];
 
-    await _handlePointerEventRecord(records);
+    await _handlePointerEventRecord(records, settleAfter: settleAfter);
   }
 
   /// Simulates a secondary (right mouse button) tap on an element matching
@@ -232,13 +238,10 @@ class GestureDispatcher {
     Offset globalPosition,
     Duration delay,
   ) async {
-    // First tap
-    await _dispatchTapAtPosition(globalPosition);
+    await _dispatchTapAtPosition(globalPosition, settleAfter: false);
 
-    // Wait between taps for double-tap recognition
     await Future<void>.delayed(delay);
 
-    // Second tap
     await _dispatchTapAtPosition(globalPosition);
   }
 
@@ -291,13 +294,10 @@ class GestureDispatcher {
       ],
     ];
 
-    // Dispatch pointer down
-    await _handlePointerEventRecord(records);
+    await _handlePointerEventRecord(records, settleAfter: false);
 
-    // Hold for the specified duration to trigger long press recognition
     await Future<void>.delayed(duration);
 
-    // Release
     await _handlePointerEventRecord([
       [
         _up(pointerId, globalPosition),
@@ -486,12 +486,14 @@ class GestureDispatcher {
   /// Similar to Flutter's test framework handlePointerEventRecord, but simplified
   /// for live app execution.
   Future<void> _handlePointerEventRecord(
-    List<List<PointerEvent>> records,
-  ) async {
+    List<List<PointerEvent>> records, {
+    bool settleAfter = true,
+  }) async {
     for (final record in records) {
       record.forEach(GestureBinding.instance.handlePointerEvent);
       WidgetsBinding.instance.scheduleFrame();
       await Future<void>.delayed(kDelay);
     }
+    if (settleAfter) await _frameSettler();
   }
 }
